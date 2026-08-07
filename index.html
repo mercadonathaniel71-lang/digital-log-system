@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Logbook - QR Library System</title>
+    <link rel="stylesheet" href="./style.css">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <!-- QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <div class="logo">
+                <i class="fas fa-book-open"></i>
+                <h1>Digital Logbook</h1>
+                <p>QR-Based Library Management System</p>
+            </div>
+
+            <div class="login-tabs">
+                <button class="tab-btn active" onclick="switchTab('student')">Student</button>
+                <button class="tab-btn" onclick="switchTab('admin')">Admin</button>
+            </div>
+
+            <!-- Student Login -->
+            <div id="student-login" class="login-form active">
+                <h2><i class="fas fa-user-graduate"></i> Student Login</h2>
+                <p class="subtitle">Sign in with your Google account para verified ang name mo.</p>
+                <button class="btn-google" onclick="signInWithGoogle()">
+                    <i class="fab fa-google"></i> Sign in with Google
+                </button>
+                <div class="demo-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Demo: Click the button above to sign in</span>
+                </div>
+            </div>
+
+            <!-- Admin Login -->
+            <div id="admin-login" class="login-form">
+                <h2><i class="fas fa-shield-alt"></i> Admin Login</h2>
+                <p class="subtitle">Restricted access for librarians only.</p>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="admin-email" placeholder="Admin Email" value="admin@logbook.com">
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="admin-password" placeholder="Password" value="admin123">
+                </div>
+                <button class="btn-primary" onclick="signInAdmin()">
+                    <i class="fas fa-sign-in-alt"></i> Login as Admin
+                </button>
+                <p class="hint">Default: admin@logbook.com / admin123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- STUDENT DASHBOARD -->
+    <div id="student-screen" class="screen">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <i class="fas fa-book-open"></i>
+                <span>Digital Logbook</span>
+            </div>
+            <div class="nav-user">
+                <img id="student-avatar" src="" alt="Avatar">
+                <span id="student-name">Student</span>
+                <button class="btn-icon" onclick="logout()" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div class="student-header">
+                <h2><i class="fas fa-hand-sparkles"></i> Welcome, <span id="welcome-name">Student</span>!</h2>
+                <p>Scan QR codes to borrow or return books.</p>
+            </div>
+
+            <div class="action-cards">
+                <div class="action-card scan-card" onclick="openScanner()">
+                    <div class="card-icon">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h3>Scan QR Code</h3>
+                    <p>Borrow or return a book by scanning its QR code.</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3><i class="fas fa-history"></i> My Borrowing History</h3>
+                <div id="student-history" class="history-list">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No transactions yet. Scan a QR code to get started!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN DASHBOARD -->
+    <div id="admin-screen" class="screen">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <i class="fas fa-book-open"></i>
+                <span>Digital Logbook <small>Admin</small></span>
+            </div>
+            <div class="nav-user">
+                <span id="admin-name"><i class="fas fa-shield-alt"></i> Admin</span>
+                <button class="btn-icon" onclick="logout()" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div class="container">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <i class="fas fa-book"></i>
+                    <div class="stat-info">
+                        <h4 id="stat-total-books">0</h4>
+                        <span>Total Books</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-book-reader"></i>
+                    <div class="stat-info">
+                        <h4 id="stat-borrowed">0</h4>
+                        <span>Borrowed</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="stat-info">
+                        <h4 id="stat-available">0</h4>
+                        <span>Available</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-exchange-alt"></i>
+                    <div class="stat-info">
+                        <h4 id="stat-transactions">0</h4>
+                        <span>Transactions</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Book Section -->
+            <div class="section">
+                <h3><i class="fas fa-plus-circle"></i> Add New Book</h3>
+                <div class="add-book-form">
+                    <div class="input-group">
+                        <i class="fas fa-heading"></i>
+                        <input type="text" id="book-title" placeholder="Book Title" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-user-edit"></i>
+                        <input type="text" id="book-author" placeholder="Author Name" required>
+                    </div>
+                    <button class="btn-primary" onclick="addBook()">
+                        <i class="fas fa-plus"></i> Add Book & Generate QR
+                    </button>
+                </div>
+            </div>
+
+            <!-- Books List -->
+            <div class="section">
+                <div class="section-header">
+                    <h3><i class="fas fa-list"></i> All Books</h3>
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" onclick="filterBooks('all')">All</button>
+                        <button class="filter-btn" onclick="filterBooks('available')">Available</button>
+                        <button class="filter-btn" onclick="filterBooks('borrowed')">Borrowed</button>
+                    </div>
+                </div>
+                <div id="books-list" class="books-grid">
+                    <div class="empty-state">
+                        <i class="fas fa-books"></i>
+                        <p>No books added yet. Add your first book above!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Log -->
+            <div class="section">
+                <h3><i class="fas fa-clipboard-list"></i> Transaction Logbook</h3>
+                <div id="transactions-list" class="transactions-list">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No transactions recorded yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR SCANNER MODAL -->
+    <div id="scanner-modal" class="modal">
+        <div class="modal-content scanner-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Scan Book QR Code</h3>
+                <button class="btn-close" onclick="closeScanner()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="scanner-body">
+                <div id="reader"></div>
+                <p class="scanner-hint">Point your camera at the book's QR code</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOOK ACTION MODAL (Borrow/Return) -->
+    <div id="book-action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="action-modal-title">Book Details</h3>
+                <button class="btn-close" onclick="closeBookAction()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="action-book-info" class="book-info-card"></div>
+                <div id="action-form" class="action-form">
+                    <div class="input-group">
+                        <i class="fas fa-comment"></i>
+                        <input type="text" id="action-notes" placeholder="Notes (optional)">
+                    </div>
+                    <button id="action-btn" class="btn-primary btn-large"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR CODE DISPLAY MODAL -->
+    <div id="qr-modal" class="modal">
+        <div class="modal-content qr-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Book QR Code</h3>
+                <button class="btn-close" onclick="closeQRModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body qr-body">
+                <div id="qr-display"></div>
+                <p class="qr-book-title" id="qr-book-title"></p>
+                <p class="qr-hint">Print this QR code and paste it on the book.</p>
+                <button class="btn-secondary" onclick="downloadQR()">
+                    <i class="fas fa-download"></i> Download QR Code
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <script src="./firebase-config.js"></script>
+    <script src="./app.js"></script>
+</body>
+</html>
